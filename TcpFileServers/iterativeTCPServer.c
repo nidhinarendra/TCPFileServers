@@ -73,8 +73,8 @@ int main(int argc, char **argv)
 		error("ERROR on binding");
 	printf("The server is listening on port %d\n", portno);
 
-	listen(sockfd,5);
 
+	listen(sockfd,5);
 
 	for(;;){
 		memset(&cli_addr, '\0', sizeof(cli_addr));
@@ -82,61 +82,48 @@ int main(int argc, char **argv)
 		if (newsockfd < 0)
 			error("ERROR on accept");
 
-		//Creating a child process to proceed with the new client
-		if ((childpid = fork()) == -1) {
-			close(newsockfd);
-		}
+		bzero(buffer,MY_BUFSIZ);
 
-		else if(childpid > 0){
-			close(newsockfd);
-		}
+		//Read the message sent by the client
+		rwSuccess = recvfrom(newsockfd, buffer, MY_BUFSIZ, 0, (struct sockaddr *) &cli_addr, &client_length);
+		if (rwSuccess < 0) error("ERROR reading from socket");
+		printf("The file requested is:%s\n", buffer);
 
-		else if(childpid == 0)
+		char send_buf[MY_BUFSIZ]; /* max chunk size for sending file */
+
+		FILE *fp;
+		fp = fopen (buffer, "r");
+		if(fp == NULL)
 		{
-			bzero(buffer,MY_BUFSIZ);
-
-			//Read the message sent by the client
-			rwSuccess = recvfrom(newsockfd, buffer, MY_BUFSIZ, 0, (struct sockaddr *) &cli_addr, &client_length);
-			if (rwSuccess < 0) error("ERROR reading from socket");
-			printf("The file requested is:%s\n", buffer);
-
-			char send_buf[MY_BUFSIZ]; /* max chunk size for sending file */
-
-			FILE *fp;
-			fp = fopen (buffer, "r");
-			if(fp == NULL)
-			{
-				error("%s File NOT FOUND!");
-				exit(1);
-			}
-
-			else{
-				printf("Sending file: %s\n", buffer);
-				if (fgets(send_buf, MY_BUFSIZ,fp)  != NULL)
-				{
-					int len_file_read_into_buffer = strlen(send_buf);
-					printf("Sending length:%lu  \n", strlen(send_buf));
-					if( (sizeSentToClient = sendto(newsockfd, send_buf, len_file_read_into_buffer, 0,
-							(struct sockaddr *)&cli_addr, sizeof(struct sockaddr_in) ))
-							< len_file_read_into_buffer )
-					{
-						error("send error");
-						return -1;
-					}
-				}
-				else{
-					error("Error reading the file");
-				}
-			}
-			fclose(fp);
-
-			printf("Length of the file sent is %d bytes\n\n",
-					(int)sizeSentToClient);
-
-
-			//Close the child when the task is completed
-			close(newsockfd);
-
+			error("%s File NOT FOUND!");
+			exit(1);
 		}
+
+		else{
+			printf("Sending file: %s\n", buffer);
+			if (fgets(send_buf, MY_BUFSIZ,fp)  != NULL)
+			{
+				int len_file_read_into_buffer = strlen(send_buf);
+				printf("Sending length:%lu  \n", strlen(send_buf));
+				if( (sizeSentToClient = sendto(newsockfd, send_buf, len_file_read_into_buffer, 0,
+						(struct sockaddr *)&cli_addr, sizeof(struct sockaddr_in) ))
+						< len_file_read_into_buffer )
+				{
+					error("send error");
+					return -1;
+				}
+			}
+			else{
+				error("Error reading the file");
+			}
+		}
+		fclose(fp);
+
+		printf("Length of the file sent is %d bytes\n\n",
+				(int)sizeSentToClient);
 	}
+
+	//Close the child when the task is completed
+	close(newsockfd);
+
 }

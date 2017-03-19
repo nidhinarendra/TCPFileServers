@@ -51,6 +51,7 @@ void error(const char *msg)
 
 int main(int argc, char *argv[])
 {
+	int MY_BUFSIZ = 1024*10;
 	//sockfd is the file descriptors
 	//rwSuccess is the return value for read() and write() calls
 	//Response value is the value got from the server
@@ -64,7 +65,7 @@ int main(int argc, char *argv[])
 	socklen_t server_length; //server address
 
 	//The characters written on the socket is read into this buffer
-	char storageBuffer[BUFSIZ];
+	char storageBuffer[10*1024];
 	const char* host = "localhost";
 	if(argc < 2){
 		error("Invalid arguments");
@@ -108,23 +109,18 @@ int main(int argc, char *argv[])
 	//Reading the response from the server
 	ssize_t sent_bytes, rcvd_bytes, rcvd_file_size;
 	int recv_count, f; /* count of recv() calls*/
-	char recv_str[BUFSIZ]; /* buffer to hold received data */
+	char recv_str[MY_BUFSIZ]; /* buffer to hold received data */
 	size_t send_strlen; /* length of transmitted string */
 	char str[100] = "fromServer";
 	FILE *fp;
 	strcat(str, storageBuffer);
 	fp = fopen(str, "w");
-	recv_count = 0; /* number of recv() calls required to receive the file */
-	rcvd_file_size = 0; /* size of received file */
+	rcvd_file_size = -1; /* size of received file */
 
-
-	while ( (rwSuccess = recvfrom(sockfd, recv_str, BUFSIZ, 0,  (struct sockaddr *) &serv_addr, &server_length)) > 0 )
-	{
-		fprintf(fp, recv_str);
-	}
+	rwSuccess = recvfrom(sockfd, recv_str, MY_BUFSIZ, 0,  (struct sockaddr *) &serv_addr, &server_length);
+	rcvd_file_size = fprintf(fp, recv_str);
 	close(f); /* close file*/
-	printf("Client Received: %zd bytes in %d recv(s)\n", rcvd_file_size,
-			recv_count);
+	printf("Client Received: %zd bytes\n", rcvd_file_size);
 
 
 	if (rwSuccess < 0)
